@@ -1,0 +1,75 @@
+-- --> Promosyon çıkılmış fakat hiç satılmamış ürünleri tespit edebilir miyiz?
+
+
+select a.v2ProductName as product_Name 
+--,a.eCommerceAction_type as typo
+from  `data-to-insights.ecommerce.web_analytics` wa
+		inner join (select visitId, v2ProductName, eCommerceAction_type from `data-to-insights.ecommerce.all_sessions` 
+	              where eCommerceAction_type!='6') a on a.visitID =wa.visitID
+		cross join unnest(wa.hits) h 
+		cross join unnest(h.promotion) p     
+where p.promoId is not null AND h.eCommerceAction.action_type !='6'
+group by product_Name
+--order by typo desc  
+
+
+-- --> Mart, nisan, mayıs aylarında ziyaretçilerin en çok görüntülediği fakat satın alınmamış ürünlere ihtiyacımız var. Her ayın top 10 ürününü gösterebilir misiniz? (Tarih yıl - ay olarak gösterilmeli.)
+
+with March as(
+select distinct v2ProductName, count(visitId) as totalvisitsofMarch ,extract(Year from PARSE_DATE('%Y%m%d',  date)) as Year, extract(Month from PARSE_DATE('%Y%m%d',  date)) as Month
+from `data-to-insights.ecommerce.all_sessions`
+where eCommerceAction_type!='6' AND date > '20170300' and date < '20170332' 
+group by v2ProductName,3,4
+order by totalvisitsofMarch desc
+)
+select * from March limit 10
+
+with April as(
+select distinct v2ProductName, count(visitId) as totalvisitsofApril ,extract(Year from PARSE_DATE('%Y%m%d',  date)) as Year, extract(Month from PARSE_DATE('%Y%m%d',  date)) as Month
+from `data-to-insights.ecommerce.all_sessions`
+where eCommerceAction_type!='6' AND date > '20170400' and date < '20170432'
+group by v2ProductName,3,4
+order by totalvisitsofApril desc
+)
+select * from April limit 10
+
+with May as(
+select distinct v2ProductName, count(visitId) as totalvisitsofMay ,extract(Year from PARSE_DATE('%Y%m%d',  date)) as Year, extract(Month from PARSE_DATE('%Y%m%d',  date)) as Month
+from `data-to-insights.ecommerce.all_sessions`
+where eCommerceAction_type!='6' AND date > '20170500' and date < '20170532'
+group by v2ProductName,3,4
+order by totalvisitsofMay desc
+)
+select * from May limit 10
+
+
+
+
+-- --> E ticaret sitemiz için günün bölümlerinde, en fazla ilgi gören kategorileri öğrenmek istiyoruz
+
+with earlyday as(
+select v2ProductCategory as category, count(visitId) as visitNumber, case when eCommerceAction_type = '6' then 1 else 0 end isSold
+from `data-to-insights.ecommerce.all_sessions`
+where TIME(TIMESTAMP_SECONDS(time)) < '12:00:00' AND v2ProductCategory!='(not set)'
+group by 1,3
+order by 2 desc
+)
+select * from earlyday 
+
+with midday as(
+select distinct v2ProductCategory as category, count(visitId) as visitNumber, case when eCommerceAction_type = '6' then 1 else 0 end isSold
+from `data-to-insights.ecommerce.all_sessions`
+where TIME(TIMESTAMP_SECONDS(time)) > '12:00:00' AND TIME(TIMESTAMP_SECONDS(time)) < '19:00:00' AND v2ProductCategory!='(not set)'
+group by 1,3
+order by 2 desc
+)
+select * from midday
+
+with lateday as(
+select distinct v2ProductCategory as category, count(visitId) as visitNumber, case when eCommerceAction_type = '6' then 1 else 0 end isSold
+from `data-to-insights.ecommerce.all_sessions`
+where TIME(TIMESTAMP_SECONDS(time)) > '19:00:00' AND TIME(TIMESTAMP_SECONDS(time)) < '23:59:59' AND v2ProductCategory!='(not set)'
+group by 1,3
+order by 2 desc
+)
+select * from lateday
